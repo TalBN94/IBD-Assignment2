@@ -71,28 +71,40 @@ def get_error_percentage(pred_labels, real_labels):
     return error_count / len(real_list)
 
 
-def plot_experiment_result(results):
-    ns = range(1, 11)
-    error_mins = np.asarray([result[2] for result in results])
-    error_maxes = np.asarray([result[1] for result in results])
-    error_means = np.asarray([result[0] for result in results])
-    plt.errorbar(ns, error_means, [error_means - error_mins, error_maxes - error_means], fmt='ok', lw=1,
-                 ecolor='tomato')
-    plt.xticks(ns, ns)
-    plt.xlabel(r'$\lambda$')
+def plot_experiment_result(results_train, results_test, lamda_exps, is_small=True):
+    error_mins_train = np.asarray([result[2] for result in results_train])
+    error_maxes_train = np.asarray([result[1] for result in results_train])
+    error_means_train = np.asarray([result[0] for result in results_train])
+    plt.errorbar(lamda_exps, error_means_train, [error_means_train - error_mins_train, error_maxes_train - error_means_train],
+                 fmt='o', lw=1, ecolor='blue')
+
+    error_mins_test = np.asarray([result[2] for result in results_test])
+    error_maxes_test = np.asarray([result[1] for result in results_test])
+    error_means_test = np.asarray([result[0] for result in results_test])
+    plt.errorbar(lamda_exps, error_means_test, [error_means_test - error_mins_test, error_maxes_test - error_means_test],
+                 fmt='o', lw=1, ecolor='red')
+
+    if is_small:
+        plt.plot(lamda_exps, error_means_train, 'b')
+        plt.plot(lamda_exps, error_means_test, 'r')
+
+    plt.legend(['Train result', 'Test results'], loc='upper left')
+
+    plt.xticks(lamda_exps, lamda_exps)
+    plt.xlabel(r'$\lambda$ (log scale)')
     plt.ylabel('Error rate')
     plt.title(r'Error rate per $\lambda$')
     plt.show()
 
 
 def run_experiment(sample_size, ls, iterations):
-    trainX, trainy, testX, testy = load_n_data(sample_size)
     results_train = []
     results_test = []
     for l in ls:
         result_l_train = []
         result_l_test = []
         for i in range(iterations):
+            trainX, trainy, testX, testy = load_n_data(sample_size)
             w = softsvm(l, trainX, trainy)
             result_l_train.append(get_error_percentage(np.sign(trainX @ w), trainy))
             result_l_test.append(get_error_percentage(np.sign(testX @ w), testy))
@@ -138,7 +150,12 @@ if __name__ == '__main__':
     # simple_test()
 
     # here you may add any code that uses the above functions to solve question 2
-    ls1 = [10**i for i in range(1, 11)]
+    exps1 = range(1, 11)
+    ls1 = [10**i for i in exps1]
     results_100_samples_train, results_100_samples_test = run_experiment(100, ls1, 10)
-    plot_experiment_result(results_100_samples_train)
-    plot_experiment_result(results_100_samples_test)
+    plot_experiment_result(results_100_samples_train, results_100_samples_test, exps1)
+
+    exps2 = [1, 3, 5, 8]
+    ls2 = [10**i for i in exps2]
+    results_1000_samples_train, results_1000_samples_test = run_experiment(1000, ls2, 1)
+    plot_experiment_result(results_1000_samples_train, results_1000_samples_test, exps2, is_small=False)
