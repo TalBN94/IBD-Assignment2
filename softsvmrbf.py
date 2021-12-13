@@ -1,6 +1,9 @@
 import numpy as np
 from cvxopt import solvers, matrix, spmatrix, spdiag, sparse
 import matplotlib.pyplot as plt
+from softsvm import softsvm, get_error_percentage
+
+gram_matrices_memo = {}
 
 
 # todo: complete the following functions, you may add auxiliary functions or define class to help you
@@ -18,6 +21,7 @@ def softsvmbf(l: float, sigma: float, trainX: np.array, trainy: np.array):
     m = trainX.shape[0]
     zeros_mm = spmatrix([], [], [], (m, m))
     H = sparse([[G_mat, zeros_mm], [zeros_mm, zeros_mm]], tc='d')
+    H = H + sparse(matrix(np.eye(2*m) * 1e-6))
 
     v1 = matrix(np.array(np.ones((m, 1))))
     v2 = matrix(np.array(np.zeros((m, 1))))
@@ -36,17 +40,21 @@ def softsvmbf(l: float, sigma: float, trainX: np.array, trainy: np.array):
 
     sol = solvers.qp(H, u, -A, -v)
     z = sol["x"]
+    print(f'solution by softsvmbf:\n {np.array(z)[:m, :]}\n\n')
     return np.array(z)[:m, :]
 
 
 def get_gram_matrix(sigma, X):
     m = X.shape[0]
+    if sigma in gram_matrices_memo:
+        return gram_matrices_memo.get(sigma)
     G = np.zeros((m, m))
     for i in range(m):
         for j in range(i, m):
             K_ij = gaussian_kernal(sigma, X[i], X[j])
             G[i][j] = K_ij
             G[j][i] = K_ij
+    gram_matrices_memo[sigma] = G
     return G
 
 
@@ -55,8 +63,8 @@ def gaussian_kernal(sigma, x_i, x_j):
     return np.exp(-diff / (2 * sigma))
 
 
-def plot_data_by_label(X, y):
-    plt.title('Data points colored by label')
+def plot_data_by_label(X, y, is_grid=False, sigma=None):
+    plt.title(f'Grid colored by label (sigma={sigma})' if is_grid else 'Data points colored by label')
     for label in np.unique(y):
         i = np.where(y == label)
         plt.scatter(X[i, 0], X[i, 1], label=label)
@@ -64,7 +72,7 @@ def plot_data_by_label(X, y):
     plt.show()
 
 
-def cross_validation(X, y, k, ls, sigmas):
+def get_folds(X, y, k):
     m = X.shape[0]
     batch_size = int(m / 5)
     shuffler = np.random.permutation(m)
@@ -73,16 +81,24 @@ def cross_validation(X, y, k, ls, sigmas):
     batches = []
     labels = []
     for i in range(k):
-        batches.append(X_shuffled[i * batch_size:(i+1)*batch_size, :])
-        labels.append(y_shuffled[i * batch_size:(i+1)*batch_size, :])
+        batches.append(X_shuffled[i * batch_size:(i + 1) * batch_size, :])
+        labels.append(y_shuffled[i * batch_size:(i + 1) * batch_size, :])
+    return batches, labels
+
+
+def cross_validation_rbf(X, y, k, ls, sigmas):
+    batches, labels = get_folds(X, y, k)
 
     min_error = float('inf')
     l_min = 0
     sigma_min = 0
     for l in ls:
         for sigma in sigmas:
+            print(f'Checking combination: l={l}, sigma={sigma}...\n')
             combination_error = 0
+            gram_matrices_memo.clear()
             for i in range(k):
+                print(f'k={i}\n')
                 validation_set_X = batches[i]
                 validation_set_y = labels[i]
                 batches_copy = batches.copy()
@@ -92,8 +108,10 @@ def cross_validation(X, y, k, ls, sigmas):
                 train_set_X = np.concatenate(batches_copy, axis=0)
                 train_set_y = np.concatenate(labels_copy, axis=0)
                 alpha_i = softsvmbf(l, sigma, train_set_X, train_set_y)
-                combination_error += calc_validation_error(validation_set_X, validation_set_y, sigma, alpha_i)
+                combination_error += calc_validation_error(train_set_X, validation_set_X, validation_set_y, sigma,
+                                                           alpha_i)
             avg_error = combination_error / k
+            print(f'average err: {avg_error}\n')
             if avg_error < min_error:
                 min_error = avg_error
                 l_min = l
@@ -101,15 +119,74 @@ def cross_validation(X, y, k, ls, sigmas):
     return l_min, sigma_min
 
 
-def calc_validation_error(validation_X, validation_y, sigma, alpha):
+def cross_validation_linear(X, y, k, ls):
+    batches, labels = get_folds(X, y, k)
+    min_error = float('inf')
+    l_min = 0
+    for l in ls:
+        combination_error = 0
+        for i in range(k):
+            validation_set_X = batches[i]
+            validation_set_y = labels[i]
+            batches_copy = batches.copy()
+            batches_copy.pop(i)
+            labels_copy = labels.copy()
+            labels_copy.pop(i)
+            train_set_X = np.concatenate(batches_copy, axis=0)
+            train_set_y = np.concatenate(labels_copy, axis=0)
+            w_i = softsvm(l, train_set_X, train_set_y)
+            combination_error += get_error_percentage(np.sign(validation_set_X @ w_i), validation_set_y)
+        avg_error = combination_error / k
+        if avg_error < min_error:
+            min_error = avg_error
+            l_min = l
+    return l_min
+
+
+def get_predictions(validation_X, train_X, sigma, alpha):
+    G_val = get_validation_kernels_matrix(validation_X, train_X, sigma)
+    preds = np.sign(G_val @ alpha)
+    return preds
+
+
+def calc_validation_error(train_X, validation_X, validation_y, sigma, alpha):
     validation_size = validation_X.shape[0]
-    G_val = get_gram_matrix(sigma, validation_X)
-    preds = G_val @ alpha
+    preds = get_predictions(validation_X, train_X, sigma, alpha)
     error_count = 0
     for i in range(validation_size):
         if preds[i] != validation_y[i][0]:
             error_count += 1
     return error_count / validation_size
+
+
+def get_validation_kernels_matrix(validation_X, train_X, sigma):
+    m = train_X.shape[0]
+    n = validation_X.shape[0]
+    G_val = np.zeros((n, m))
+    for i in range(n):
+        for j in range(m):
+            K_ij = gaussian_kernal(sigma, train_X[j], validation_X[i])
+            G_val[i][j] = K_ij
+    return G_val
+
+
+def run_experiment_section_d(trainX, trainy):
+    grid_min = np.max(trainX)
+    grid_max = np.max(trainX)
+    alphas = []
+    pred_vecs = []
+    sigmas = [0.01, 0.5, 1]
+    l = 100
+    grid_x = np.linspace(grid_min, grid_max, num=100)
+    grid_y = np.linspace(grid_min, grid_max, num=100)
+    grid = np.array([grid_x, grid_y]).T
+    for sigma in sigmas:
+        alpha_i = softsvmbf(l, sigma, trainX, trainy)
+        alphas.append(alpha_i)
+        preds_i = get_predictions(grid, trainX, sigma, alpha_i)
+        pred_vecs.append(preds_i)
+    for i in range(len(pred_vecs)):
+        plot_data_by_label(grid, pred_vecs[i], is_grid=True, sigma=sigmas[i])
 
 
 def simple_test():
@@ -151,6 +228,24 @@ if __name__ == '__main__':
     plot_data_by_label(trainX, trainy)
 
     # section b - running RBF soft SVM experiment
+    print('==================\nSection B\n==================\n')
+    print('\n==================\nRBF Soft SVM\n==================\n')
     ls = [1, 10, 100]
     sigmas = [0.01, 0.5, 1]
-    best_l, best_sigma = cross_validation(trainX, trainy, 5, ls, sigmas)
+    best_l, best_sigma = cross_validation_rbf(trainX, trainy, 5, ls, sigmas)
+    print(f'Best sigma: {best_sigma}\nBest l: {best_l}')
+
+    alpha = softsvmbf(best_l, best_sigma, trainX, trainy)
+    test_error = calc_validation_error(trainX, testX, testy, best_sigma, alpha)
+    print(f"The test error classifying with optimal alpha: {test_error}\n")
+
+    print('\n==================\nLinear Soft SVM\n==================\n')
+    best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
+    print(f'Best l: {best_l}')
+
+    w = softsvm(best_l_linear, trainX, trainy)
+    linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
+    print(f"The test error classifying with optimal w: {linear_test_error}\n")
+
+    print('==================\nSection D\n==================\n')
+    run_experiment_section_d(trainX, trainy)
