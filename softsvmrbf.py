@@ -1,6 +1,8 @@
 import numpy as np
 from cvxopt import solvers, matrix, spmatrix, spdiag, sparse
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+from matplotlib.colors import ListedColormap
 from softsvm import softsvm, get_error_percentage
 
 gram_matrices_memo = {}
@@ -40,7 +42,6 @@ def softsvmbf(l: float, sigma: float, trainX: np.array, trainy: np.array):
 
     sol = solvers.qp(H, u, -A, -v)
     z = sol["x"]
-    print(f'solution by softsvmbf:\n {np.array(z)[:m, :]}\n\n')
     return np.array(z)[:m, :]
 
 
@@ -63,8 +64,8 @@ def gaussian_kernal(sigma, x_i, x_j):
     return np.exp(-diff / (2 * sigma))
 
 
-def plot_data_by_label(X, y, is_grid=False, sigma=None):
-    plt.title(f'Grid colored by label (sigma={sigma})' if is_grid else 'Data points colored by label')
+def plot_data_by_label(X, y):
+    plt.title('Data points colored by label')
     for label in np.unique(y):
         i = np.where(y == label)
         plt.scatter(X[i, 0], X[i, 1], label=label)
@@ -111,7 +112,7 @@ def cross_validation_rbf(X, y, k, ls, sigmas):
                 combination_error += calc_validation_error(train_set_X, validation_set_X, validation_set_y, sigma,
                                                            alpha_i)
             avg_error = combination_error / k
-            print(f'average err: {avg_error}\n')
+            print(f'average err: {avg_error}\n\n')
             if avg_error < min_error:
                 min_error = avg_error
                 l_min = l
@@ -124,6 +125,7 @@ def cross_validation_linear(X, y, k, ls):
     min_error = float('inf')
     l_min = 0
     for l in ls:
+        print(f'Checking for lamda: {l}...\n')
         combination_error = 0
         for i in range(k):
             validation_set_X = batches[i]
@@ -137,6 +139,7 @@ def cross_validation_linear(X, y, k, ls):
             w_i = softsvm(l, train_set_X, train_set_y)
             combination_error += get_error_percentage(np.sign(validation_set_X @ w_i), validation_set_y)
         avg_error = combination_error / k
+        print(f'Average error: {avg_error}\n\n')
         if avg_error < min_error:
             min_error = avg_error
             l_min = l
@@ -171,22 +174,25 @@ def get_validation_kernels_matrix(validation_X, train_X, sigma):
 
 
 def run_experiment_section_d(trainX, trainy):
-    grid_min = np.max(trainX)
-    grid_max = np.max(trainX)
-    alphas = []
-    pred_vecs = []
     sigmas = [0.01, 0.5, 1]
     l = 100
-    grid_x = np.linspace(grid_min, grid_max, num=100)
-    grid_y = np.linspace(grid_min, grid_max, num=100)
-    grid = np.array([grid_x, grid_y]).T
+    grid_min = np.min(trainX)
+    grid_max = np.max(trainX)
+    grid_points = np.linspace(grid_min, grid_max, num=100)
+    xs, ys = np.meshgrid(grid_points, grid_points)
+    grid = np.array([xs.flatten(), ys.flatten()]).T
     for sigma in sigmas:
+        print(f'Running experiment with sigma={sigma}...\n')
         alpha_i = softsvmbf(l, sigma, trainX, trainy)
-        alphas.append(alpha_i)
         preds_i = get_predictions(grid, trainX, sigma, alpha_i)
-        pred_vecs.append(preds_i)
-    for i in range(len(pred_vecs)):
-        plot_data_by_label(grid, pred_vecs[i], is_grid=True, sigma=sigmas[i])
+        grid_labeled = preds_i.reshape(100, 100)
+        grid_colors = ListedColormap(['blue', 'orange'])
+        patches = [Patch(color='blue', label='-1'), Patch(color='orange', label='1')]
+        plt.grid()
+        plt.imshow(grid_labeled, cmap=grid_colors, extent=[grid_min, grid_max, grid_min, grid_max])
+        plt.legend(handles=patches)
+        plt.title(f'Grid colored by label (sigma={sigma})')
+        plt.show()
 
 
 def simple_test():
@@ -214,7 +220,7 @@ def simple_test():
 
 if __name__ == '__main__':
     # before submitting, make sure that the function simple_test runs without errors
-    simple_test()
+    # simple_test()
 
     # here you may add any code that uses the above functions to solve question 4
     # load data
@@ -225,7 +231,7 @@ if __name__ == '__main__':
     testy = data['Ytest']
 
     # section a - plot data points colored by label
-    plot_data_by_label(trainX, trainy)
+    # plot_data_by_label(trainX, trainy)
 
     # section b - running RBF soft SVM experiment
     print('==================\nSection B\n==================\n')
@@ -241,11 +247,11 @@ if __name__ == '__main__':
 
     print('\n==================\nLinear Soft SVM\n==================\n')
     best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
-    print(f'Best l: {best_l}')
+    print(f'Best l: {best_l_linear}')
 
     w = softsvm(best_l_linear, trainX, trainy)
     linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
     print(f"The test error classifying with optimal w: {linear_test_error}\n")
 
-    print('==================\nSection D\n==================\n')
-    run_experiment_section_d(trainX, trainy)
+    # print('==================\nSection D\n==================\n')
+    # run_experiment_section_d(trainX, trainy)

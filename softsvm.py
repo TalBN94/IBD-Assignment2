@@ -64,8 +64,8 @@ def load_n_data(n):
 
 
 def get_error_percentage(pred_labels, real_labels):
-    pred_list = pred_labels.T.tolist()[0]
-    real_list = real_labels.tolist()
+    pred_list = pred_labels.flatten()
+    real_list = real_labels.flatten()
     error_count = 0
     for i in range(len(real_list)):
         if pred_list[i] != real_list[i]:
