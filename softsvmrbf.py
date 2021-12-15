@@ -173,7 +173,7 @@ def get_validation_kernels_matrix(validation_X, train_X, sigma):
     return G_val
 
 
-def run_experiment_section_d(trainX, trainy):
+def run_grid_experiment(trainX, trainy):
     sigmas = [0.01, 0.5, 1]
     l = 100
     grid_min = np.min(trainX)
@@ -186,9 +186,8 @@ def run_experiment_section_d(trainX, trainy):
         alpha_i = softsvmbf(l, sigma, trainX, trainy)
         preds_i = get_predictions(grid, trainX, sigma, alpha_i)
         grid_labeled = preds_i.reshape(100, 100)
-        grid_colors = ListedColormap(['blue', 'orange'])
-        patches = [Patch(color='blue', label='-1'), Patch(color='orange', label='1')]
-        plt.grid()
+        grid_colors = ListedColormap(['blue', 'red'])
+        patches = [Patch(color='blue', label='-1'), Patch(color='red', label='1')]
         plt.imshow(grid_labeled, cmap=grid_colors, extent=[grid_min, grid_max, grid_min, grid_max])
         plt.legend(handles=patches)
         plt.title(f'Grid colored by label (sigma={sigma})')
@@ -220,7 +219,7 @@ def simple_test():
 
 if __name__ == '__main__':
     # before submitting, make sure that the function simple_test runs without errors
-    # simple_test()
+    simple_test()
 
     # here you may add any code that uses the above functions to solve question 4
     # load data
@@ -231,7 +230,7 @@ if __name__ == '__main__':
     testy = data['Ytest']
 
     # section a - plot data points colored by label
-    # plot_data_by_label(trainX, trainy)
+    plot_data_by_label(trainX, trainy)
 
     # section b - running RBF soft SVM experiment
     print('==================\nSection B\n==================\n')
@@ -253,5 +252,5 @@ if __name__ == '__main__':
     linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
     print(f"The test error classifying with optimal w: {linear_test_error}\n")
 
-    # print('==================\nSection D\n==================\n')
-    # run_experiment_section_d(trainX, trainy)
+    print('==================\nSection D\n==================\n')
+    run_grid_experiment(trainX, trainy)
