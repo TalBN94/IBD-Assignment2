@@ -3,6 +3,7 @@ from cvxopt import solvers, matrix, spmatrix, spdiag, sparse
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.colors import ListedColormap
+from matplotlib.ticker import AutoMinorLocator
 from softsvm import softsvm, get_error_percentage
 
 gram_matrices_memo = {}
@@ -176,19 +177,26 @@ def get_validation_kernels_matrix(validation_X, train_X, sigma):
 def run_grid_experiment(trainX, trainy):
     sigmas = [0.01, 0.5, 1]
     l = 100
+    grid_size = 100
     grid_min = np.min(trainX)
     grid_max = np.max(trainX)
-    grid_points = np.linspace(grid_min, grid_max, num=100)
+    grid_points = np.linspace(grid_min, grid_max, num=grid_size)
     xs, ys = np.meshgrid(grid_points, grid_points)
     grid = np.array([xs.flatten(), ys.flatten()]).T
     for sigma in sigmas:
         print(f'Running experiment with sigma={sigma}...\n')
         alpha_i = softsvmbf(l, sigma, trainX, trainy)
         preds_i = get_predictions(grid, trainX, sigma, alpha_i)
-        grid_labeled = preds_i.reshape(100, 100)
+        grid_labeled = preds_i.reshape(grid_size, grid_size)
         grid_colors = ListedColormap(['blue', 'red'])
         patches = [Patch(color='blue', label='-1'), Patch(color='red', label='1')]
-        plt.imshow(grid_labeled, cmap=grid_colors, extent=[grid_min, grid_max, grid_min, grid_max])
+        fig, ax = plt.subplots()
+        loc_x = AutoMinorLocator(n=10)
+        loc_y = AutoMinorLocator(n=10)
+        ax.xaxis.set_minor_locator(loc_x)
+        ax.yaxis.set_minor_locator(loc_y)
+        ax.grid(which='both', axis='both')
+        ax.imshow(grid_labeled, cmap=grid_colors, extent=[grid_min, grid_max, grid_min, grid_max])
         plt.legend(handles=patches)
         plt.title(f'Grid colored by label (sigma={sigma})')
         plt.show()
@@ -230,27 +238,27 @@ if __name__ == '__main__':
     testy = data['Ytest']
 
     # section a - plot data points colored by label
-    plot_data_by_label(trainX, trainy)
-
-    # section b - running RBF soft SVM experiment
-    print('==================\nSection B\n==================\n')
-    print('\n==================\nRBF Soft SVM\n==================\n')
-    ls = [1, 10, 100]
-    sigmas = [0.01, 0.5, 1]
-    best_l, best_sigma = cross_validation_rbf(trainX, trainy, 5, ls, sigmas)
-    print(f'Best sigma: {best_sigma}\nBest l: {best_l}')
-
-    alpha = softsvmbf(best_l, best_sigma, trainX, trainy)
-    test_error = calc_validation_error(trainX, testX, testy, best_sigma, alpha)
-    print(f"The test error classifying with optimal alpha: {test_error}\n")
-
-    print('\n==================\nLinear Soft SVM\n==================\n')
-    best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
-    print(f'Best l: {best_l_linear}')
-
-    w = softsvm(best_l_linear, trainX, trainy)
-    linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
-    print(f"The test error classifying with optimal w: {linear_test_error}\n")
+    # plot_data_by_label(trainX, trainy)
+    #
+    # # section b - running RBF soft SVM experiment
+    # print('==================\nSection B\n==================\n')
+    # print('\n==================\nRBF Soft SVM\n==================\n')
+    # ls = [1, 10, 100]
+    # sigmas = [0.01, 0.5, 1]
+    # best_l, best_sigma = cross_validation_rbf(trainX, trainy, 5, ls, sigmas)
+    # print(f'Best sigma: {best_sigma}\nBest l: {best_l}')
+    #
+    # alpha = softsvmbf(best_l, best_sigma, trainX, trainy)
+    # test_error = calc_validation_error(trainX, testX, testy, best_sigma, alpha)
+    # print(f"The test error classifying with optimal alpha: {test_error}\n")
+    #
+    # print('\n==================\nLinear Soft SVM\n==================\n')
+    # best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
+    # print(f'Best l: {best_l_linear}')
+    #
+    # w = softsvm(best_l_linear, trainX, trainy)
+    # linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
+    # print(f"The test error classifying with optimal w: {linear_test_error}\n")
 
     print('==================\nSection D\n==================\n')
     run_grid_experiment(trainX, trainy)
