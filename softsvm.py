@@ -187,11 +187,15 @@ if __name__ == '__main__':
     simple_test()
 
     # here you may add any code that uses the above functions to solve question 2
+    # section a - small sample size experiment
+    print('==================\nSection A\n==================\n')
     exps1 = range(1, 11)
     ls1 = [10**i for i in exps1]
     results_100_samples_train, results_100_samples_test = run_experiment(100, ls1, 10)
     plot_experiment_result(results_100_samples_train, results_100_samples_test, exps1)
 
+    # section b - large sample size experiment
+    print('==================\nSection B\n==================\n')
     exps2 = [1, 3, 5, 8]
     ls2 = [10**i for i in exps2]
     results_1000_samples_train, results_1000_samples_test = run_experiment(1000, ls2, 1)
