@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 def softsvm(l, trainX: np.array, trainy: np.array):
     """
-
+    Soft SVM algorithm
     :param l: the parameter lambda of the soft SVM algorithm
     :param trainX: numpy array of size (m, d) containing the training sample
     :param trainy: numpy array of size (m, 1) containing the labels of the training sample
@@ -48,6 +48,11 @@ def softsvm(l, trainX: np.array, trainy: np.array):
 
 
 def load_n_data(n):
+    """
+    Load n data points (randomly) for the train data and the entire test data for Q2
+    :param n: number of train data points to load randomly
+    :return: train data (n data points), test data for Q2
+    """
     # load question 2 data
     data = np.load('ex2q2_mnist.npz')
     trainX = data['Xtrain']
@@ -55,7 +60,7 @@ def load_n_data(n):
     trainy = data['Ytrain']
     testy = data['Ytest']
 
-    # Get a random m training examples from the training set
+    # Get a random n training examples from the training set
     indices = np.random.permutation(trainX.shape[0])
     _trainX = trainX[indices[:n]]
     _trainy = trainy[indices[:n]]
@@ -64,6 +69,12 @@ def load_n_data(n):
 
 
 def get_error_percentage(pred_labels, real_labels):
+    """
+    Calculates the error rate of the prediction
+    :param pred_labels: predicted labels
+    :param real_labels: actual labels
+    :return: ratio between misclassified data and the entire data
+    """
     pred_list = pred_labels.flatten()
     real_list = real_labels.flatten()
     error_count = 0
@@ -75,6 +86,16 @@ def get_error_percentage(pred_labels, real_labels):
 
 def plot_experiment_result(results_train, results_test, lamda_exps, results_train_large=None, results_test_large=None,
                            lambda_exps_large=None, is_small=True):
+    """
+    Plots the experiment results according to the requirements
+    :param results_train: train error results
+    :param results_test: test error results
+    :param lamda_exps: the lambda powers used in the experiment
+    :param results_train_large: train error result (if it's the large train size experiment)
+    :param results_test_large: test error result (if it's the large train size experiment)
+    :param lambda_exps_large: the lambda powers used in the experiment (if it's the large train size experiment)
+    :param is_small: indicates if it's the small train sample experiment of the large train sample experiment
+    """
     error_mins_train = np.asarray([result[2] for result in results_train])
     error_maxes_train = np.asarray([result[1] for result in results_train])
     error_means_train = np.asarray([result[0] for result in results_train])
@@ -107,6 +128,13 @@ def plot_experiment_result(results_train, results_test, lamda_exps, results_trai
 
 
 def run_experiment(sample_size, ls, iterations):
+    """
+    Executes the experiment for the given lambdas
+    :param sample_size: amount of train data points to load for the experiment
+    :param ls: list of lambda values to test
+    :param iterations: number of times to run the experiment for each lambda value
+    :return: results on the train and test data
+    """
     results_train = []
     results_test = []
     for l in ls:

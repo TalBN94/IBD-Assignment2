@@ -12,7 +12,7 @@ gram_matrices_memo = {}
 # todo: complete the following functions, you may add auxiliary functions or define class to help you
 def softsvmbf(l: float, sigma: float, trainX: np.array, trainy: np.array):
     """
-
+    RBF Soft SVM algorithm (uses gaussian kernel for finding a separator)
     :param l: the parameter lambda of the soft SVM algorithm
     :param sigma: the bandwidth parameter sigma of the RBF kernel.
     :param trainX: numpy array of size (m, d) containing the training sample
@@ -47,6 +47,12 @@ def softsvmbf(l: float, sigma: float, trainX: np.array, trainy: np.array):
 
 
 def get_gram_matrix(sigma, X):
+    """
+    Calculates the Gram matrix for a given train data X and the gaussian kernel function
+    :param sigma: sigma parameter value for the gaussian kernel function
+    :param X: train data
+    :return: Gram matrix (gaussian kernel) for the train data
+    """
     m = X.shape[0]
     if sigma in gram_matrices_memo:
         return gram_matrices_memo.get(sigma)
@@ -61,11 +67,23 @@ def get_gram_matrix(sigma, X):
 
 
 def gaussian_kernal(sigma, x_i, x_j):
+    """
+    Calculates the gaussian kernel function for 2 data points
+    :param sigma: sigma parameter value
+    :param x_i: first data point
+    :param x_j: second data point
+    :return: K(x_i, x_j) (gaussian kernel)
+    """
     diff = np.linalg.norm(x_i - x_j) ** 2
     return np.exp(-diff / (2 * sigma))
 
 
 def plot_data_by_label(X, y):
+    """
+    Plots the given data points colores by label (for section a)
+    :param X: the data
+    :param y: the labels
+    """
     plt.title('Data points colored by label')
     for label in np.unique(y):
         i = np.where(y == label)
@@ -75,6 +93,14 @@ def plot_data_by_label(X, y):
 
 
 def get_folds(X, y, k):
+    """
+    Divides the data and labels to k folds
+    :param X: the data
+    :param y: the labels
+    :param k: amount of folds
+    :return: batches and labels, where batches[i] is the i'th data fold and labels[i] is the i'th label fold which
+    matches batches[i]
+    """
     m = X.shape[0]
     batch_size = int(m / 5)
     shuffler = np.random.permutation(m)
@@ -89,8 +115,16 @@ def get_folds(X, y, k):
 
 
 def cross_validation_rbf(X, y, k, ls, sigmas):
+    """
+    Performs cross validation for the RBF Soft SVM algorithm
+    :param X: the data
+    :param y: the labels
+    :param k: amount of folds
+    :param ls: list of values to check for lambda parameter
+    :param sigmas: list of values to check for sigma parameter
+    :return: the best combination of lambda and sigma which minimizes the average error on the data folds
+    """
     batches, labels = get_folds(X, y, k)
-
     min_error = float('inf')
     l_min = 0
     sigma_min = 0
@@ -122,6 +156,14 @@ def cross_validation_rbf(X, y, k, ls, sigmas):
 
 
 def cross_validation_linear(X, y, k, ls):
+    """
+    Performs cross validation for the Soft SVM algorithm
+    :param X: the data
+    :param y: the labels
+    :param k: amount of folds
+    :param ls: list of values to check for lambda parameter
+    :return: the best lambda which minimizes the average error on the data folds
+    """
     batches, labels = get_folds(X, y, k)
     min_error = float('inf')
     l_min = 0
@@ -148,12 +190,30 @@ def cross_validation_linear(X, y, k, ls):
 
 
 def get_predictions(validation_X, train_X, sigma, alpha):
+    """
+    Calculates the predictions for a given validation set
+    :param validation_X: the validation set data
+    :param train_X: the training data
+    :param sigma: sigma parameter value (for gaussian kernel function)
+    :param alpha: the seperator alpha received from RBF Soft SVM algorithm
+    :return: predictions vector (label for each validation data point)
+    """
     G_val = get_validation_kernels_matrix(validation_X, train_X, sigma)
     preds = np.sign(G_val @ alpha)
     return preds
 
 
 def calc_validation_error(train_X, validation_X, validation_y, sigma, alpha):
+    """
+    Calculates the validation error rate, which is the ratio between misclassified validation data points to the
+    entire validation data
+    :param train_X: train data
+    :param validation_X: validation set data
+    :param validation_y: validation set labels
+    :param sigma: sigma parameter value (for gaussian kernel function)
+    :param alpha: the seperator alpha received from RBF Soft SVM algorithm
+    :return: validation error rate
+    """
     validation_size = validation_X.shape[0]
     preds = get_predictions(validation_X, train_X, sigma, alpha)
     error_count = 0
@@ -164,6 +224,14 @@ def calc_validation_error(train_X, validation_X, validation_y, sigma, alpha):
 
 
 def get_validation_kernels_matrix(validation_X, train_X, sigma):
+    """
+    Calculates the kernels for the entire validation data and returns it as a matrix, where the i'th row of the returned
+    matrix holds the kernel calculations for the i'th validation data point
+    :param validation_X: validation set data
+    :param train_X: train data
+    :param sigma: sigma parameter value (for gaussian kernel function)
+    :return: Kernels matrix for the validation data
+    """
     m = train_X.shape[0]
     n = validation_X.shape[0]
     G_val = np.zeros((n, m))
@@ -175,6 +243,12 @@ def get_validation_kernels_matrix(validation_X, train_X, sigma):
 
 
 def run_grid_experiment(trainX, trainy):
+    """
+    Performs classification of a grid consists of 10,000 point in the range of the train data points, and plots the grid
+    colored by label (for section d)
+    :param trainX: train data
+    :param trainy: train labels
+    """
     sigmas = [0.01, 0.5, 1]
     l = 100
     grid_size = 100
@@ -238,27 +312,27 @@ if __name__ == '__main__':
     testy = data['Ytest']
 
     # section a - plot data points colored by label
-    # plot_data_by_label(trainX, trainy)
-    #
-    # # section b - running RBF soft SVM experiment
-    # print('==================\nSection B\n==================\n')
-    # print('\n==================\nRBF Soft SVM\n==================\n')
-    # ls = [1, 10, 100]
-    # sigmas = [0.01, 0.5, 1]
-    # best_l, best_sigma = cross_validation_rbf(trainX, trainy, 5, ls, sigmas)
-    # print(f'Best sigma: {best_sigma}\nBest l: {best_l}')
-    #
-    # alpha = softsvmbf(best_l, best_sigma, trainX, trainy)
-    # test_error = calc_validation_error(trainX, testX, testy, best_sigma, alpha)
-    # print(f"The test error classifying with optimal alpha: {test_error}\n")
-    #
-    # print('\n==================\nLinear Soft SVM\n==================\n')
-    # best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
-    # print(f'Best l: {best_l_linear}')
-    #
-    # w = softsvm(best_l_linear, trainX, trainy)
-    # linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
-    # print(f"The test error classifying with optimal w: {linear_test_error}\n")
+    plot_data_by_label(trainX, trainy)
+
+    # section b - running RBF soft SVM experiment
+    print('==================\nSection B\n==================\n')
+    print('\n==================\nRBF Soft SVM\n==================\n')
+    ls = [1, 10, 100]
+    sigmas = [0.01, 0.5, 1]
+    best_l, best_sigma = cross_validation_rbf(trainX, trainy, 5, ls, sigmas)
+    print(f'Best sigma: {best_sigma}\nBest l: {best_l}')
+
+    alpha = softsvmbf(best_l, best_sigma, trainX, trainy)
+    test_error = calc_validation_error(trainX, testX, testy, best_sigma, alpha)
+    print(f"The test error classifying with optimal alpha: {test_error}\n")
+
+    print('\n==================\nLinear Soft SVM\n==================\n')
+    best_l_linear = cross_validation_linear(trainX, trainy, 5, ls)
+    print(f'Best l: {best_l_linear}')
+
+    w = softsvm(best_l_linear, trainX, trainy)
+    linear_test_error = get_error_percentage(np.sign(testX @ w), testy)
+    print(f"The test error classifying with optimal w: {linear_test_error}\n")
 
     print('==================\nSection D\n==================\n')
     run_grid_experiment(trainX, trainy)
